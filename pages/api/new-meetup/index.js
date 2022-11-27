@@ -3,10 +3,8 @@ import { MongoClient } from "mongodb";
 async function handler(req, res) {
   if (req.method === "POST") {
     const data = req.body;
-    const uri =
-      "mongodb+srv://omarmoquete:nXTUiS9.CXLN6pD@cluster0.gibvo2f.mongodb.net/meetups?retryWrites=true&w=majority";
 
-    const client = await MongoClient.connect(uri);
+    const client = await MongoClient.connect(process.env.MONGODB_URI);
 
     const db = client.db();
 
