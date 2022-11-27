@@ -17,18 +17,20 @@ export async function getStaticProps() {
 
   const meetupsData = await meetupsCollection.find().toArray();
 
-  client.close();
+  const formattedMeetups = meetupsData.map((meetup) => {
+    return {
+      id: meetup._id.toString(),
+      title: meetup.title,
+      address: meetup.address,
+      image: meetup.image,
+    };
+  });
 
+  client.close();
   return {
     props: {
-      meetups: meetupsData.map((meetup) => {
-        return {
-          id: meetup._id.toString(),
-          title: meetup.title,
-          address: meetup.address,
-          image: meetup.image,
-        };
-      }),
+      meetups: formattedMeetups,
     },
+    revalidate: 2,
   };
 }

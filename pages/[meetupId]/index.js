@@ -1,43 +1,77 @@
+import { MongoClient, ObjectId } from "mongodb";
 import React from "react";
 import { DUMMY_MEETUPS } from "..";
 import MeetupDetail from "../../components/meetups/MeetupDetail";
+import MeetupList from "../../components/meetups/MeetupList";
 
-export default function MeetupPage({ meetupData }) {
-  return <MeetupDetail {...meetupData} />;
+export default function MeetupPage(props) {
+  console.log(props);
+
+  return <MeetupDetail {...props} />;
 }
-///////////////////////////////////////////////////////////////
 
+// Get meetup data from db to pass into MeetupDetail component
 export async function getStaticProps(context) {
-  // console.log("GETTING NEW DATA"); // logged to terminal
-  // console.log("Time: " + Date()); // logged to terminal
-  const response = await fetch("https://restcountries.com/v3.1/all");
-  const responseData = await response.json();
+  // How does meetupId gets set in the browser url? Initially when the page loads all the documents(meetups) in the database are rendered as a list. Each list item has a button which executes a programmatic navigation to the current meetup id.
 
-  const meetupData = DUMMY_MEETUPS.filter(
-    (meetup) => meetup.id === context.params.meetupId
-  ).at(0);
+  // received meetupId from dynamic path
+  const { meetupId } = context.params;
+
+  // connect to mongodb
+  const client = await MongoClient.connect(process.env.MONGODB_URI);
+
+  // connect to db
+  const db = client.db();
+
+  // connect to meetups collection in the db
+  const meetupsCollection = db.collection("meetups");
+
+  // find the one meetup which matches the dynamic path id
+  // ObjectId() exported from mongodb creates a new bson id required.
+  const selectedMeetup = await meetupsCollection.findOne({
+    _id: new ObjectId(meetupId),
+  });
+
+  // close connection
+  await client.close();
 
   return {
     props: {
-      meetupData,
+      image: selectedMeetup.image,
+      description: selectedMeetup.description,
+      address: selectedMeetup.address,
+      title: selectedMeetup.title,
     },
-    revalidate: 30,
   };
 }
 
 export async function getStaticPaths() {
-  // Return object with a paths property, which is an array of objects, where each object has a params property, which value is an object of a possible segment id.
+  // connect to mongodb
+  const client = await MongoClient.connect(process.env.MONGODB_URI);
+
+  // connect to db
+  const db = client.db();
+
+  // connect to meetups collection in the db
+  const meetupsCollection = db.collection("meetups");
+
+  // get possible paths to replace [meetupId] with. These paths will include each meetup id.
+  // get all meetup ids to replace [meetupId] with
+  // find({} === what to filter, {_id: 0} === without if 0, only if 1)
+
+  const documentsArray = await meetupsCollection.find().toArray(); //returns all documents in the collection in an array
+  const ids = documentsArray.map((doc) => JSON.parse(JSON.stringify(doc._id))); // returns an array with all the ids parsed from bson to json to strings.
+
+  const cb = function (id) {
+    return { params: { meetupId: id } };
+  };
+
+  const paths = ids.map(cb);
+
   return {
-    paths: [
-      {
-        params: {
-          meetupId: "m1",
-        },
-        params: {
-          meetupId: "m2",
-        },
-      },
-    ],
-    fallback: true, // false means that all possible values are given here. This means that if the user tries to access a path that does not exist, a 404 error will be thrown. If true, nextjs will try to generate a page for the current dynamic segment automatically on the server for the current request (current path being requested). In other words, this is used in case we don't want to pregenerate all pages, just certain pages and let nextjs pregenerate the rest upon request.
+    paths,
+    fallback: false,
   };
 }
+
+// OAOO
